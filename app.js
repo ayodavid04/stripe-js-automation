@@ -110,15 +110,26 @@ bot.command("email", async (ctx) => {
 });
 
 bot.on("text", async (ctx) => {
-  console.log("📩 Telegram message received:", ctx.message.text);
-  const email = ctx.message.text.trim();
   const userId = ctx.from?.id;
+  const text = ctx.message.text.trim();
+
   if (!userId) return ctx.reply("❌ Could not identify user.");
 
-  if (!email.includes("@") || !email.includes(".")) {
-    return ctx.reply("⚠️ Please send a valid email (must contain '@' and '.')");
+  // If it's a command, ignore this handler
+  if (text.startsWith("/")) return;
+
+  // Basic email format check
+  const isEmail = text.includes("@") && text.includes(".");
+
+  if (!isEmail) {
+    return ctx.reply(
+      "⚠️ Please use /start to begin or send your subscription email.\n" +
+      "Or click this link to subscribe:\n" +
+      "http://www.startrader.com/live-account/?affid=302615"
+    );
   }
 
+  // Email flow continues here
   const existing = await getEmailByUser(userId);
   if (existing) {
     return ctx.reply(
@@ -129,14 +140,15 @@ bot.on("text", async (ctx) => {
     );
   }
 
-  await insertOrUpdateUser(userId, email);
+  await insertOrUpdateUser(userId, text);
   await ctx.reply(
-    `✅ Linked '${email}' successfully.\n\n` +
+    `✅ Linked '${text}' successfully.\n\n` +
     "🎉 You now have access to the channels:\n" +
     "https://t.me/+BeFotamcYN1hZmY0\n" +
     "https://t.me/+A2jeD4HyJ_k2OGM8"
   );
 });
+
 
 // Kick Telegram user from group
 async function removeUserFromGroup(telegramId) {
