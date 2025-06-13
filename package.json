@@ -6,5 +6,9 @@
     "pg": "^8.16.0",
     "stripe": "^12.18.0",
     "telegraf": "^4.16.3"
-  }
+  },
+  "scripts": {
+    "start": "node app.js"
+  },
+  "license": "MIT"
 }
