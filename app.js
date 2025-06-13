@@ -23,12 +23,9 @@ if (!TELEGRAM_BOT_TOKEN || !RENDER_URL || !STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_
   throw new Error("❌ Missing required env vars");
 }
 
-const app = express();
-app.use(bodyParser.json());
+const app = express(); // do not apply global bodyParser
 
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-});
+const pool = new Pool({ connectionString: DATABASE_URL });
 
 async function initDb() {
   const client = await pool.connect();
@@ -113,11 +110,11 @@ bot.command("email", async (ctx) => {
 });
 
 bot.on("text", async (ctx) => {
+  console.log("📩 Telegram message received:", ctx.message.text);
   const email = ctx.message.text.trim();
   const userId = ctx.from?.id;
-  if (!userId) {
-    return ctx.reply("❌ Could not identify user.");
-  }
+  if (!userId) return ctx.reply("❌ Could not identify user.");
+
   if (!email.includes("@") || !email.includes(".")) {
     return ctx.reply("⚠️ Please send a valid email (must contain '@' and '.')");
   }
@@ -141,7 +138,7 @@ bot.on("text", async (ctx) => {
   );
 });
 
-// Function to remove user from Telegram group (ban and unban = kick)
+// Kick Telegram user from group
 async function removeUserFromGroup(telegramId) {
   try {
     await bot.telegram.banChatMember(TELEGRAM_GROUP_ID, telegramId);
@@ -152,7 +149,7 @@ async function removeUserFromGroup(telegramId) {
   }
 }
 
-// Set Telegram webhook
+// Telegram webhook setup
 async function setTelegramWebhook() {
   try {
     await bot.telegram.setWebhook(WEBHOOK_URL);
@@ -162,8 +159,8 @@ async function setTelegramWebhook() {
   }
 }
 
-// Telegram webhook endpoint
-app.post(`/${WEBHOOK_SECRET_PATH}`, (req, res) => {
+// ✅ Only apply JSON bodyParser to Telegram webhook
+app.post(`/${WEBHOOK_SECRET_PATH}`, bodyParser.json(), (req, res) => {
   bot.handleUpdate(req.body)
     .then(() => res.status(200).send("OK"))
     .catch((err) => {
@@ -172,7 +169,7 @@ app.post(`/${WEBHOOK_SECRET_PATH}`, (req, res) => {
     });
 });
 
-// Stripe setup
+// Stripe raw webhook
 const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2022-11-15" });
 const verifySignature = VERIFY_STRIPE_SIGNATURE === "true";
 
@@ -217,11 +214,12 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
   res.status(200).send("OK");
 });
 
+// Health check route
 app.get("/", (req, res) => {
   res.send("✅ Bot is live");
 });
 
-// Start everything
+// Start the server
 (async () => {
   try {
     await initDb();
