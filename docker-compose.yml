@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  app:
+    build: .
+    ports:
+      - "10000:10000"
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_GROUP_ID=${TELEGRAM_GROUP_ID}
+      - RENDER_URL=${RENDER_URL}
+      - WEBHOOK_SECRET_PATH=${WEBHOOK_SECRET_PATH}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - VERIFY_STRIPE_SIGNATURE=${VERIFY_STRIPE_SIGNATURE}
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=10000
+    restart: unless-stopped
