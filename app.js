@@ -165,6 +165,7 @@ async function removeUserFromGroup(telegramId) {
 async function setTelegramWebhook() {
   try {
     await bot.telegram.setWebhook(WEBHOOK_URL);
+  
     console.log(`✅ Telegram webhook set to ${WEBHOOK_URL}`);
   } catch (err) {
     console.error("❌ Failed to set Telegram webhook:", err);
@@ -229,6 +230,21 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 // Health check route
 app.get("/", (req, res) => {
   res.send("✅ Bot is live");
+});
+
+// Ping route for UptimeRobot
+app.get("/ping", (req, res) => {
+  res.send("pong");
+});
+
+// Status check route
+app.get("/status", (req, res) => {
+  res.json({
+    status: "Bot is live ✅",
+    time: new Date(),
+    env: process.env.NODE_ENV || "development",
+    webhook: `${RENDER_URL}/${WEBHOOK_SECRET_PATH}`,
+  });
 });
 
 // Start the server
