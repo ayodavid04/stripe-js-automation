@@ -247,6 +247,63 @@ app.get("/status", (req, res) => {
   });
 });
 
+app.get("/dashboard", async (req, res) => {
+  const { token } = req.query;
+
+  if (token !== process.env.DASHBOARD_ACCESS_TOKEN) {
+    return res.status(403).send("❌ Forbidden - Invalid Token");
+  }
+
+  try {
+    const client = await pool.connect();
+    const result = await client.query("SELECT * FROM telegram_users ORDER BY telegram_id");
+    client.release();
+
+    const rows = result.rows
+      .map(
+        (row) =>
+          `<tr><td>${row.telegram_id}</td><td>${row.email}</td></tr>`
+      )
+      .join("");
+
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Telegram User Dashboard</title>
+        <style>
+          body { font-family: sans-serif; padding: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        </style>
+        <script>
+          setTimeout(() => window.location.reload(), 10000);
+        </script>
+      </head>
+      <body>
+        <h1>📊 Telegram Users Dashboard</h1>
+        <p>Auto-refreshes every 10 seconds</p>
+        <table>
+          <thead>
+            <tr><th>Telegram ID</th><th>Email</th></tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error("❌ Error rendering dashboard:", err);
+    res.status(500).send("Error loading dashboard");
+  }
+});
+
+
+
 // Start the server
 (async () => {
   try {
