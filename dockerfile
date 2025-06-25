@@ -16,3 +16,7 @@ EXPOSE 10000
 
 # Run the app
 CMD ["npm", "start"]
+
+# Healthcheck to ensure the app is runningHEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD wget --spider -q http://localhost:10000/ping || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD wget --spider -q http://localhost:10000/ping || exit 1
+

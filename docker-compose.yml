@@ -3,7 +3,7 @@ services:
   app:
     build: .
     ports:
-      - "10000:10000"
+      - "${PORT}:${PORT}"
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_GROUP_ID=${TELEGRAM_GROUP_ID}
