@@ -1,18 +1,18 @@
-# Use official lightweight Node.js image
 FROM node:18-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy only necessary files first for better cache
 COPY package*.json ./
+
+# Install prod dependencies only
 RUN npm install --omit=dev
 
 # Copy the rest of the app
 COPY . .
 
-# Expose the app port
+# Expose app port
 EXPOSE 10000
 
-# Run the application
+# Run the app
 CMD ["npm", "start"]

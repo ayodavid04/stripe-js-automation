@@ -1,22 +1,6 @@
-# Ignore node_modules - gets rebuilt inside container
 node_modules
-
-# Ignore environment files
-.env
-.env.local
-
-# Ignore logs
-*.log
-
-# Ignore OS or editor junk
-.DS_Store
-.vscode
-.idea
-
-# Ignore git files
+npm-debug.log
 .git
 .gitignore
-
-# Optional: ignore tests if they exist and aren't needed in production
-tests
-__tests__
+Dockerfile
+docker-compose.yml
