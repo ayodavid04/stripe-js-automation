@@ -15,7 +15,7 @@ const {
   STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET,
   VERIFY_STRIPE_SIGNATURE = "true",
-  PORT = 10000,
+  
   DATABASE_URL,
 } = process.env;
 

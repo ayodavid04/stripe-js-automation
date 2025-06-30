@@ -11,8 +11,7 @@ RUN npm install --omit=dev
 # Copy the rest of the app
 COPY . .
 
-# Expose app port
-EXPOSE 10000
+# Expose app portEXPOSE 8080
 
 # Run the app
 CMD ["npm", "start"]
