@@ -155,11 +155,16 @@ async function removeUserFromGroup(telegramId) {
   try {
     await bot.telegram.banChatMember(TELEGRAM_GROUP_ID, telegramId);
     await bot.telegram.unbanChatMember(TELEGRAM_GROUP_ID, telegramId);
-    console.log(`✅ Removed Telegram user ${telegramId} from group`);
+    console.log(`✅ Attempted to remove Telegram user ${telegramId} from group`);
   } catch (err) {
-    console.error(`❌ Failed to remove Telegram user ${telegramId}:`, err);
+    if (err.response?.description?.includes("USER_NOT_PARTICIPANT")) {
+      console.warn(`⚠️ User ${telegramId} not in group, skipping removal.`);
+    } else {
+      console.error(`❌ Failed to remove Telegram user ${telegramId}:`, err);
+    }
   }
 }
+
 
 // Telegram webhook setup
 async function setTelegramWebhook() {
@@ -187,45 +192,58 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2022-11-15" });
 const verifySignature = VERIFY_STRIPE_SIGNATURE === "true";
 
 app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  let event;
-  const sig = req.headers["stripe-signature"];
-
   try {
+    let event;
+    const sig = req.headers["stripe-signature"];
+
     if (verifySignature) {
-      event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+      } catch (err) {
+        console.error("❌ Stripe signature verification failed:", err);
+        return res.status(400).send("Invalid signature");
+      }
     } else {
       event = JSON.parse(req.body.toString());
     }
-  } catch (err) {
-    console.error("❌ Stripe webhook error:", err);
-    return res.status(400).send("Invalid signature");
-  }
 
-  const dataObject = event.data?.object || {};
-  let email = dataObject.customer_email;
+    const dataObject = event.data?.object || {};
+    let email = dataObject.customer_email;
 
-  if (!email && dataObject.customer) {
-    try {
-      const customer = await stripe.customers.retrieve(dataObject.customer);
-      email = customer.email;
-    } catch (err) {
-      console.error("❌ Failed to fetch customer email:", err);
+    if (!email && dataObject.customer) {
+      try {
+        const customer = await stripe.customers.retrieve(dataObject.customer);
+        email = customer.email;
+      } catch (err) {
+        console.error("❌ Failed to fetch customer email:", err);
+      }
     }
-  }
 
-  if (
-    ["invoice.payment_failed", "customer.subscription.deleted", "charge.failed", "charge.dispute.created"].includes(event.type) &&
-    email
-  ) {
+    if (!email) {
+      console.warn("⚠️ No email found in webhook event, ignoring.");
+      return res.status(200).send("OK");
+    }
+
     const telegramId = await getTelegramIdByEmail(email);
-    if (telegramId) {
-      console.log(`🔁 Removing Telegram user ${telegramId} for email ${email}`);
+
+    if (!telegramId) {
+      console.warn(`⚠️ No Telegram ID found for email ${email}, ignoring.`);
+      return res.status(200).send("OK");
+    }
+
+    if (["invoice.payment_failed", "customer.subscription.deleted", "charge.failed", "charge.dispute.created"].includes(event.type)) {
+      console.log(`🔁 Attempting to remove Telegram user ${telegramId} for email ${email}`);
       await removeUserFromGroup(telegramId);
     }
-  }
 
-  res.status(200).send("OK");
+    res.status(200).send("OK");
+
+  } catch (err) {
+    console.error("❌ Webhook Handler Error:", err);
+    res.status(500).send("Webhook error");
+  }
 });
+
 
 // Health check route
 app.get("/", (req, res) => {
@@ -248,21 +266,29 @@ app.get("/status", (req, res) => {
 });
 
 app.get("/dashboard", async (req, res) => {
-  const { token } = req.query;
+  const { token, order } = req.query;
 
   if (token !== process.env.DASHBOARD_ACCESS_TOKEN) {
     return res.status(403).send("❌ Forbidden - Invalid Token");
   }
 
+  const sortOrder = order === "desc" ? "DESC" : "ASC";
+  const sortLabel = sortOrder === "DESC" ? "Newest First" : "Oldest First";
+  const oppositeOrder = sortOrder === "DESC" ? "asc" : "desc";
+
   try {
     const client = await pool.connect();
-    const result = await client.query("SELECT * FROM telegram_users ORDER BY telegram_id");
+    const result = await client.query(`SELECT * FROM telegram_users ORDER BY joined_at ${sortOrder}`);
     client.release();
 
     const rows = result.rows
       .map(
         (row) =>
-          `<tr><td>${row.telegram_id}</td><td>${row.email}</td></tr>`
+          `<tr>
+            <td>${row.telegram_id}</td>
+            <td>${row.email}</td>
+            <td>${new Date(row.joined_at).toLocaleString()}</td>
+          </tr>`
       )
       .join("");
 
@@ -284,10 +310,19 @@ app.get("/dashboard", async (req, res) => {
       </head>
       <body>
         <h1>📊 Telegram Users Dashboard</h1>
-        <p>Auto-refreshes every 10 seconds</p>
+        <p>
+          Sort by: 
+          <a href="?token=${token}&order=${oppositeOrder}">
+            ${sortOrder === "DESC" ? "Oldest First" : "Newest First"}
+          </a>
+        </p>
         <table>
           <thead>
-            <tr><th>Telegram ID</th><th>Email</th></tr>
+            <tr>
+              <th>Telegram ID</th>
+              <th>Email</th>
+              <th>Joined At</th>
+            </tr>
           </thead>
           <tbody>
             ${rows}
